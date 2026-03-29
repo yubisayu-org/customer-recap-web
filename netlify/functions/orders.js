@@ -89,8 +89,8 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ orders: [], summary: null }) };
     }
 
-    // Header row: Event, Customer, Order ID, Order, Unit, Price, UnitArrive, Subtotal, Ongkir, Berat
-    // Indices:     0      1         2         3      4     5      6           7         8       9
+    // Header row: Event, Customer, Order ID, Order, Unit, Price, UnitArrive, Subtotal, Ongkir, Berat, BeratUnit, Pembayaran
+    // Indices:     0      1         2         3      4     5      6           7         8       9      10         11
     const dataRows = rows.slice(1);
 
     const matchingRows = dataRows.filter((row) => {
@@ -101,7 +101,7 @@ exports.handler = async (event) => {
     });
 
     if (matchingRows.length === 0) {
-      return { statusCode: 200, headers, body: JSON.stringify({ orders: [], summary: null }) };
+      return { statusCode: 200, headers, body: JSON.stringify({ orders: [], shippingFeePerKg: 0 }) };
     }
 
     // Strip Order ID (index 2), return remaining columns
@@ -115,39 +115,17 @@ exports.handler = async (event) => {
       subtotal: row[7] || "",
       ongkir: row[8] || "",
       berat: row[9] || "",
+      beratUnit: row[10] || "",
+      pembayaran: row[11] || "",
     }));
 
-    // Calculate summary
-    const totalSubtotal = matchingRows.reduce((sum, row) => {
-      return sum + (parseFloat(String(row[7] || "0").replace(/,/g, "")) || 0);
-    }, 0);
-
-    // Total weight = sum of (Berat in grams × Unit) converted to kg, then ceil
-    const totalWeightGrams = matchingRows.reduce((sum, row) => {
-      const berat = parseFloat(String(row[9] || "0").replace(/,/g, "")) || 0;
-      const unit = parseFloat(String(row[4] || "0").replace(/,/g, "")) || 0;
-      return sum + berat * unit;
-    }, 0);
-
-    const ceiledWeight = Math.ceil(totalWeightGrams / 1000);
-
-    // Use ongkir per kg from the first matching row
     const shippingFeePerKg =
       parseFloat(String(matchingRows[0][8] || "0").replace(/,/g, "")) || 0;
-    const totalShippingFee = shippingFeePerKg * ceiledWeight;
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({
-        orders,
-        summary: {
-          totalSubtotal,
-          totalWeight: ceiledWeight,
-          shippingFeePerKg,
-          totalShippingFee,
-        },
-      }),
+      body: JSON.stringify({ orders, shippingFeePerKg }),
     };
   } catch (err) {
     console.error("Error fetching sheet data:", err);

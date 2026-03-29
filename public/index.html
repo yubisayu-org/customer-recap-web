@@ -20,25 +20,44 @@
       padding: 2rem 1rem;
     }
 
-    h1 {
-      text-align: center;
-      margin-bottom: 0.25rem;
-      font-size: 1.75rem;
-      color: #1a1a1a;
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      width: fit-content;
+      margin: 0 auto 2rem;
     }
 
-    .subtitle {
-      text-align: center;
+    .page-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .page-header img {
+      height: 52px;
+      width: auto;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .page-header-text h1 {
+      font-size: 1.4rem;
+      color: #1a1a1a;
+      margin-bottom: 0.15rem;
+    }
+
+    .page-header-text .subtitle {
       color: #777;
-      margin-bottom: 2rem;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
     }
 
     .search-box {
       display: flex;
       gap: 0.5rem;
-      max-width: 480px;
-      margin: 0 auto 2rem;
+      width: 100%;
+      min-width: 320px;
     }
 
     .search-box input {
@@ -139,18 +158,9 @@
       border-bottom: 1px solid #eee;
     }
 
-    /* Right-align numeric columns (Unit, Price, Subtotal, Unit Arrive) */
-    thead th:nth-child(3),
-    thead th:nth-child(4),
-    thead th:nth-child(5),
-    thead th:nth-child(6) {
-      text-align: right;
-    }
-
-    tbody td:nth-child(3),
-    tbody td:nth-child(4),
-    tbody td:nth-child(5),
-    tbody td:nth-child(6) {
+    /* Right-align numeric columns: Unit(2), Price(3), Subtotal(4), UnitArrive(5), Berat(6), BeratUnit(7) */
+    thead th:nth-child(n+2),
+    tbody td:nth-child(n+2) {
       text-align: right;
     }
 
@@ -162,44 +172,44 @@
       border-top: 2px solid #ddd;
     }
 
-    /* In the event-total row the unit cell is nth-child(2) due to colspan="2" on the label */
-    tr.event-total td:nth-child(2),
-    tr.event-total td:nth-child(3),
-    tr.event-total td:nth-child(4),
-    tr.event-total td:nth-child(5) {
-      text-align: right;
+    /* event-total: label = nth-child(1), unit = nth-child(2), rest follow */
+    tr.event-total td:nth-child(n+2) { text-align: right; }
+    tr.event-total td:nth-child(1)   { text-align: left; }
+
+    /* Ringkasan per event */
+    .ringkasan {
+      padding: 0.85rem 1.25rem;
+      background: #f8f9ff;
+      border-top: 2px solid #d0d8f8;
     }
 
-    /* Summary card */
-    .summary-card {
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      padding: 1.25rem 1.5rem;
+    .ringkasan-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #3c3c8a;
+      margin-bottom: 0.5rem;
     }
 
-    .summary-card h3 {
-      margin-bottom: 0.75rem;
-      font-size: 1.1rem;
-      color: #1a1a1a;
-    }
-
-    .summary-row {
+    .ringkasan-row {
       display: flex;
       justify-content: space-between;
-      padding: 0.4rem 0;
-      border-bottom: 1px solid #f0f0f0;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid #e8eaf6;
+      font-size: 0.9rem;
     }
 
-    .summary-row:last-child { border-bottom: none; }
-    .summary-row .label { color: #666; }
-    .summary-row .value { font-weight: 600; }
+    .ringkasan-row:last-child { border-bottom: none; }
+    .ringkasan-row .r-label { color: #555; }
+    .ringkasan-row .r-value { font-weight: 600; }
+
+    .r-value.sisa-positive { color: #e53e3e; }
+    .r-value.sisa-zero     { color: #38a169; }
 
     @media (max-width: 600px) {
       .container { padding: 1rem 0.5rem; }
-      h1 { font-size: 1.35rem; }
-      .search-box { flex-direction: column; }
-      .search-box button { width: 100%; }
+      h1 { font-size: 1.2rem; }
+      .hero { width: 100%; }
+      .search-box { min-width: unset; }
       table { font-size: 0.8rem; }
       thead th, tbody td { padding: 0.5rem; }
       .event-card-header { gap: 0.4rem 1rem; }
@@ -208,13 +218,19 @@
 </head>
 <body>
   <div class="container">
-    <h1>Purchase Order Viewer</h1>
-    <p class="subtitle">Cari pesanan kamu dengan Instagram ID</p>
-
-    <form class="search-box" id="searchForm">
-      <input type="text" id="igInput" placeholder="@your_instagram_id" autocomplete="off" required />
-      <button type="submit" id="searchBtn">Cari</button>
-    </form>
+    <div class="hero">
+      <div class="page-header">
+        <img src="/logo.jpg" alt="Yubisayu" />
+        <div class="page-header-text">
+          <h1>Purchase Order Viewer</h1>
+          <p class="subtitle">Cari pesanan kamu dengan Instagram ID</p>
+        </div>
+      </div>
+      <form class="search-box" id="searchForm">
+        <input type="text" id="igInput" placeholder="@your_instagram_id" autocomplete="off" required />
+        <button type="submit" id="searchBtn">Cari</button>
+      </form>
+    </div>
 
     <div id="results"></div>
   </div>
@@ -257,7 +273,7 @@
           return;
         }
 
-        renderOrders(data.orders, data.summary);
+        renderOrders(data.orders, data.shippingFeePerKg || 0);
       } catch (err) {
         results.innerHTML = '<div class="message error">Gagal terhubung ke server. Silakan coba lagi.</div>';
       } finally {
@@ -272,7 +288,7 @@
       return d.innerHTML;
     }
 
-    function renderOrders(orders, summary) {
+    function renderOrders(orders, ongkirPerKg) {
       // Group by Event ID, preserving order
       const groups = {};
       const groupOrder = [];
@@ -283,16 +299,20 @@
       });
 
       const customer = orders[0].instagramId;
-      const ongkirPerKg = summary ? summary.shippingFeePerKg : 0;
-
       let html = "";
 
       groupOrder.forEach((eid) => {
         const rows = groups[eid];
 
-        const evTotalUnit     = rows.reduce((s, r) => s + parseNum(r.unit), 0);
-        const evTotalSubtotal = rows.reduce((s, r) => s + parseNum(r.subtotal), 0);
-        const evTotalArrive   = rows.reduce((s, r) => s + parseNum(r.unitArrive), 0);
+        const evTotalUnit      = rows.reduce((s, r) => s + parseNum(r.unit), 0);
+        const evTotalSubtotal  = rows.reduce((s, r) => s + parseNum(r.subtotal), 0);
+        const evTotalArrive    = rows.reduce((s, r) => s + parseNum(r.unitArrive), 0);
+        const evTotalBeratUnit = rows.reduce((s, r) => s + parseNum(r.beratUnit), 0);
+        const evCeiledWeightKg = Math.ceil(evTotalBeratUnit / 1000);
+        const evOngkir         = ongkirPerKg * evCeiledWeightKg;
+        const evPembayaran     = parseNum(rows[0].pembayaran);
+        const evSisa           = evTotalSubtotal + evOngkir - evPembayaran;
+        const sisaClass        = evSisa <= 0 ? "sisa-zero" : "sisa-positive";
 
         html += `
           <div class="event-card">
@@ -314,56 +334,64 @@
               <table>
                 <thead>
                   <tr>
-                    <th>Pembayaran</th>
                     <th>Order</th>
                     <th>Unit</th>
                     <th>Price</th>
                     <th>Subtotal</th>
                     <th>Unit Arrive</th>
+                    <th>Berat (g)</th>
+                    <th>Berat×Unit (g)</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${rows.map((r) => `
                     <tr>
-                      <td></td>
                       <td>${escapeHtml(r.order)}</td>
                       <td>${escapeHtml(r.unit)}</td>
                       <td>${escapeHtml(r.price)}</td>
                       <td>${escapeHtml(r.subtotal)}</td>
                       <td>${r.unitArrive !== "" ? escapeHtml(r.unitArrive) : "0"}</td>
+                      <td>${escapeHtml(r.berat)}</td>
+                      <td>${escapeHtml(r.beratUnit)}</td>
                     </tr>
                   `).join("")}
                   <tr class="event-total">
-                    <td colspan="2">${escapeHtml(eid)} Total</td>
+                    <td>Total</td>
                     <td>${evTotalUnit}</td>
                     <td></td>
                     <td>${formatNumber(evTotalSubtotal)}</td>
                     <td>${evTotalArrive}</td>
+                    <td></td>
+                    <td>${formatNumber(evTotalBeratUnit)}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+            <div class="ringkasan">
+              <div class="ringkasan-title">Ringkasan</div>
+              <div class="ringkasan-row">
+                <span class="r-label">Total Subtotal</span>
+                <span class="r-value">Rp ${formatNumber(evTotalSubtotal)}</span>
+              </div>
+              <div class="ringkasan-row">
+                <span class="r-label">Total Berat</span>
+                <span class="r-value">${formatNumber(evCeiledWeightKg)} kg</span>
+              </div>
+              <div class="ringkasan-row">
+                <span class="r-label">Ongkos Kirim</span>
+                <span class="r-value">Rp ${formatNumber(evOngkir)}</span>
+              </div>
+              <div class="ringkasan-row">
+                <span class="r-label">Pembayaran</span>
+                <span class="r-value">Rp ${formatNumber(evPembayaran)}</span>
+              </div>
+              <div class="ringkasan-row">
+                <span class="r-label">Sisa</span>
+                <span class="r-value ${sisaClass}">Rp ${formatNumber(evSisa)}</span>
+              </div>
+            </div>
           </div>`;
       });
-
-      if (summary) {
-        html += `
-          <div class="summary-card">
-            <h3>Ringkasan</h3>
-            <div class="summary-row">
-              <span class="label">Total Subtotal</span>
-              <span class="value">Rp ${formatNumber(summary.totalSubtotal)}</span>
-            </div>
-            <div class="summary-row">
-              <span class="label">Total Berat</span>
-              <span class="value">${formatNumber(summary.totalWeight)} kg</span>
-            </div>
-            <div class="summary-row">
-              <span class="label">Ongkos Kirim (Rp ${formatNumber(summary.shippingFeePerKg)}/kg)</span>
-              <span class="value">Rp ${formatNumber(summary.totalShippingFee)}</span>
-            </div>
-          </div>`;
-      }
 
       results.innerHTML = html;
     }
