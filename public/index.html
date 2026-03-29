@@ -9,7 +9,7 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #f5f5f5;
+      background: #fff;
       color: #333;
       min-height: 100vh;
     }
@@ -70,11 +70,11 @@
       transition: border-color 0.2s;
     }
 
-    .search-box input:focus { border-color: #667eea; }
+    .search-box input:focus { border-color: #5c0a14; }
 
     .search-box button {
       padding: 0.75rem 1.5rem;
-      background: #667eea;
+      background: #5c0a14;
       color: #fff;
       border: none;
       border-radius: 8px;
@@ -84,7 +84,7 @@
       white-space: nowrap;
     }
 
-    .search-box button:hover { background: #5a6fd6; }
+    .search-box button:hover { background: #4a0810; }
     .search-box button:disabled { background: #aaa; cursor: not-allowed; }
 
     .message {
@@ -106,16 +106,14 @@
     }
 
     .event-card-header {
-      background: #667eea;
+      background: #5c0a14;
       color: #fff;
       padding: 0.75rem 1.25rem;
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem 1.5rem;
       align-items: center;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      position: relative;
     }
 
     .event-card-header .header-item {
@@ -137,6 +135,16 @@
 
     .table-wrap { overflow-x: auto; }
 
+    thead th:first-child,
+    tbody td:first-child {
+      padding-left: 1.25rem;
+    }
+
+    thead th:last-child,
+    tbody td:last-child {
+      padding-right: 1.25rem;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -144,13 +152,13 @@
     }
 
     thead th {
-      background: #f0f4ff;
-      color: #3c3c8a;
+      background: #f5f0e8;
+      color: #5c0a14;
       padding: 0.65rem 0.75rem;
       text-align: left;
       font-weight: 600;
       white-space: nowrap;
-      border-bottom: 2px solid #d0d8f8;
+      border-bottom: 2px solid #d9cfc2;
     }
 
     tbody td {
@@ -179,14 +187,14 @@
     /* Ringkasan per event */
     .ringkasan {
       padding: 0.85rem 1.25rem;
-      background: #f8f9ff;
-      border-top: 2px solid #d0d8f8;
+      background: #f5f0e8;
+      border-top: 2px solid #d9cfc2;
     }
 
     .ringkasan-title {
       font-weight: 700;
       font-size: 0.9rem;
-      color: #3c3c8a;
+      color: #5c0a14;
       margin-bottom: 0.5rem;
     }
 
@@ -194,16 +202,29 @@
       display: flex;
       justify-content: space-between;
       padding: 0.35rem 0;
-      border-bottom: 1px solid #e8eaf6;
+      border-bottom: 1px solid #e0d8cc;
       font-size: 0.9rem;
     }
 
     .ringkasan-row:last-child { border-bottom: none; }
-    .ringkasan-row .r-label { color: #555; }
+    .ringkasan-row .r-label { color: #555; font-weight: 600; }
     .ringkasan-row .r-value { font-weight: 600; }
 
     .r-value.sisa-positive { color: #e53e3e; }
     .r-value.sisa-zero     { color: #38a169; }
+
+    /* Remarks */
+    .remarks {
+      margin-top: 0.5rem;
+      margin-bottom: 1.5rem;
+      padding: 1rem 1.25rem;
+      background: #f5f0e8;
+      border-radius: 10px;
+      border-left: 4px solid #5c0a14;
+      font-size: 0.88rem;
+      color: #555;
+      line-height: 1.7;
+    }
 
     @media (max-width: 600px) {
       .container { padding: 1rem 0.5rem; }
@@ -299,7 +320,15 @@
       });
 
       const customer = orders[0].instagramId;
-      let html = "";
+
+      let html = `
+        <div class="remarks">
+          Silakan cek rekapan, kontak <a href="https://ig.me/m/yubisayu.id" target="_blank" rel="noopener noreferrer" style="color:#5c0a14;font-weight:600;">@yubisayu.id</a> jika rekapan ada yang salah, kurang, atau tidak sesuai.<br>
+          Jika rekapan sudah sesuai, bisa langsung transfer (tidak perlu tunggu diinvoice admin) ke:<br>
+          Rekening BCA a/n Shinta Michiko Puteri <strong>4419051991</strong> atau<br>
+          Rekening JAGO a/n Shinta Michiko Puteri <strong>103382719370</strong><br>
+          Bukti transfer jangan lupa dikirim ke <a href="https://ig.me/m/yubisayu.id" target="_blank" rel="noopener noreferrer" style="color:#5c0a14;font-weight:600;">@yubisayu.id</a> untuk diverifikasi, terima kasih!
+        </div>`;
 
       groupOrder.forEach((eid) => {
         const rows = groups[eid];
@@ -339,8 +368,6 @@
                     <th>Price</th>
                     <th>Subtotal</th>
                     <th>Unit Arrive</th>
-                    <th>Berat (g)</th>
-                    <th>Berat×Unit (g)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -351,8 +378,6 @@
                       <td>${escapeHtml(r.price)}</td>
                       <td>${escapeHtml(r.subtotal)}</td>
                       <td>${r.unitArrive !== "" ? escapeHtml(r.unitArrive) : "0"}</td>
-                      <td>${escapeHtml(r.berat)}</td>
-                      <td>${escapeHtml(r.beratUnit)}</td>
                     </tr>
                   `).join("")}
                   <tr class="event-total">
@@ -361,24 +386,22 @@
                     <td></td>
                     <td>${formatNumber(evTotalSubtotal)}</td>
                     <td>${evTotalArrive}</td>
-                    <td></td>
-                    <td>${formatNumber(evTotalBeratUnit)}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <div class="ringkasan">
-              <div class="ringkasan-title">Ringkasan</div>
+              <div class="ringkasan-title">Invoice</div>
               <div class="ringkasan-row">
-                <span class="r-label">Total Subtotal</span>
+                <span class="r-label">Subtotal Barang</span>
                 <span class="r-value">Rp ${formatNumber(evTotalSubtotal)}</span>
               </div>
               <div class="ringkasan-row">
-                <span class="r-label">Total Berat</span>
+                <span class="r-label">Estimasi Berat</span>
                 <span class="r-value">${formatNumber(evCeiledWeightKg)} kg</span>
               </div>
               <div class="ringkasan-row">
-                <span class="r-label">Ongkos Kirim</span>
+                <span class="r-label">Estimasi Ongkos Kirim</span>
                 <span class="r-value">Rp ${formatNumber(evOngkir)}</span>
               </div>
               <div class="ringkasan-row">
@@ -386,7 +409,7 @@
                 <span class="r-value">Rp ${formatNumber(evPembayaran)}</span>
               </div>
               <div class="ringkasan-row">
-                <span class="r-label">Sisa</span>
+                <span class="r-label">Sisa Pelunasan</span>
                 <span class="r-value ${sisaClass}">Rp ${formatNumber(evSisa)}</span>
               </div>
             </div>
