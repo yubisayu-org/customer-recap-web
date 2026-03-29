@@ -1,0 +1,156 @@
+const { google } = require("googleapis");
+
+// --- In-memory cache ---
+let cachedData = null;
+let cacheTimestamp = 0;
+const CACHE_TTL = 60_000; // 60 seconds
+
+// --- Rate limiting ---
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60_000; // 1 minute
+const RATE_LIMIT_MAX = 30;
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  let entry = rateLimitMap.get(ip);
+
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW) {
+    entry = { windowStart: now, count: 1 };
+    rateLimitMap.set(ip, entry);
+    return false;
+  }
+
+  entry.count++;
+  if (entry.count > RATE_LIMIT_MAX) {
+    return true;
+  }
+  return false;
+}
+
+async function getSheetData() {
+  const now = Date.now();
+  if (cachedData && now - cacheTimestamp < CACHE_TTL) {
+    return cachedData;
+  }
+
+  const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+  });
+
+  const sheets = google.sheets({ version: "v4", auth });
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: process.env.SPREADSHEET_ID,
+    range: "Sheet1",
+  });
+
+  cachedData = response.data.values || [];
+  cacheTimestamp = now;
+  return cachedData;
+}
+
+exports.handler = async (event) => {
+  const headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+  };
+
+  if (event.httpMethod !== "GET") {
+    return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
+  }
+
+  // Rate limiting
+  const ip = event.headers["x-forwarded-for"] || event.headers["client-ip"] || "unknown";
+  if (isRateLimited(ip)) {
+    return {
+      statusCode: 429,
+      headers,
+      body: JSON.stringify({
+        error: "Terlalu banyak permintaan. Silakan coba lagi dalam satu menit.",
+      }),
+    };
+  }
+
+  const instagramId = (event.queryStringParameters || {}).instagramId;
+  if (!instagramId) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ error: "Parameter instagramId wajib diisi." }),
+    };
+  }
+
+  const searchId = instagramId.replace(/^@/, "").toLowerCase();
+
+  try {
+    const rows = await getSheetData();
+    if (rows.length < 2) {
+      return { statusCode: 200, headers, body: JSON.stringify({ orders: [], summary: null }) };
+    }
+
+    // Header row: Order ID, Instagram ID, Event ID, Order, Unit, Price, Subtotal, Berat, Shipping Fee (per kg)
+    // Indices:     0         1              2         3      4     5      6         7      8
+    const dataRows = rows.slice(1);
+
+    const matchingRows = dataRows.filter((row) => {
+      // Filter completely empty rows
+      if (!row || row.every((cell) => !cell || String(cell).trim() === "")) return false;
+      const rowIg = (row[1] || "").replace(/^@/, "").toLowerCase();
+      return rowIg === searchId;
+    });
+
+    if (matchingRows.length === 0) {
+      return { statusCode: 200, headers, body: JSON.stringify({ orders: [], summary: null }) };
+    }
+
+    // Strip Order ID (index 0), return remaining columns
+    const orders = matchingRows.map((row) => ({
+      instagramId: row[1] || "",
+      eventId: row[2] || "",
+      order: row[3] || "",
+      unit: row[4] || "",
+      price: row[5] || "",
+      subtotal: row[6] || "",
+      berat: row[7] || "",
+      shippingFeePerKg: row[8] || "",
+    }));
+
+    // Calculate summary
+    const totalSubtotal = matchingRows.reduce((sum, row) => {
+      return sum + (parseFloat(String(row[6] || "0").replace(/,/g, "")) || 0);
+    }, 0);
+
+    const totalWeight = matchingRows.reduce((sum, row) => {
+      return sum + (parseFloat(String(row[7] || "0").replace(/,/g, "")) || 0);
+    }, 0);
+
+    const ceiledWeight = Math.ceil(totalWeight);
+
+    // Use shipping fee per kg from the first matching row
+    const shippingFeePerKg =
+      parseFloat(String(matchingRows[0][8] || "0").replace(/,/g, "")) || 0;
+    const totalShippingFee = shippingFeePerKg * ceiledWeight;
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        orders,
+        summary: {
+          totalSubtotal,
+          totalWeight: ceiledWeight,
+          shippingFeePerKg,
+          totalShippingFee,
+        },
+      }),
+    };
+  } catch (err) {
+    console.error("Error fetching sheet data:", err);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: "Gagal mengambil data. Silakan coba lagi nanti." }),
+    };
+  }
+};

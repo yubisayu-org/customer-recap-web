@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Purchase Order Viewer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 0.25rem;
+      font-size: 1.75rem;
+      color: #1a1a1a;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #777;
+      margin-bottom: 2rem;
+      font-size: 0.95rem;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 0.5rem;
+      max-width: 480px;
+      margin: 0 auto 2rem;
+    }
+
+    .search-box input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-box input:focus { border-color: #667eea; }
+
+    .search-box button {
+      padding: 0.75rem 1.5rem;
+      background: #667eea;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .search-box button:hover { background: #5a6fd6; }
+    .search-box button:disabled { background: #aaa; cursor: not-allowed; }
+
+    .message {
+      text-align: center;
+      padding: 2rem;
+      color: #888;
+      font-size: 1.05rem;
+    }
+
+    .message.error { color: #e53e3e; }
+
+    .event-group {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+
+    .event-header {
+      background: #667eea;
+      color: #fff;
+      padding: 0.75rem 1.25rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    thead th {
+      background: #f0f0f0;
+      padding: 0.6rem 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      white-space: nowrap;
+      border-bottom: 2px solid #ddd;
+    }
+
+    tbody td {
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+
+    .summary-card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1.25rem 1.5rem;
+    }
+
+    .summary-card h3 {
+      margin-bottom: 0.75rem;
+      font-size: 1.1rem;
+      color: #1a1a1a;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row .label { color: #666; }
+    .summary-row .value { font-weight: 600; }
+
+    @media (max-width: 600px) {
+      .container { padding: 1rem 0.5rem; }
+      h1 { font-size: 1.35rem; }
+      .search-box { flex-direction: column; }
+      .search-box button { width: 100%; }
+      table { font-size: 0.8rem; }
+      thead th, tbody td { padding: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Purchase Order Viewer</h1>
+    <p class="subtitle">Cari pesanan kamu dengan Instagram ID</p>
+
+    <form class="search-box" id="searchForm">
+      <input type="text" id="igInput" placeholder="@your_instagram_id" autocomplete="off" required />
+      <button type="submit" id="searchBtn">Cari</button>
+    </form>
+
+    <div id="results"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById("searchForm");
+    const input = document.getElementById("igInput");
+    const btn = document.getElementById("searchBtn");
+    const results = document.getElementById("results");
+
+    function formatNumber(n) {
+      return new Intl.NumberFormat("id-ID").format(n);
+    }
+
+    function parseNum(v) {
+      return parseFloat(String(v || "0").replace(/,/g, "")) || 0;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const raw = input.value.trim();
+      if (!raw) return;
+
+      const igId = raw.replace(/^@/, "");
+      btn.disabled = true;
+      btn.textContent = "Mencari...";
+      results.innerHTML = '<div class="message">Memuat data...</div>';
+
+      try {
+        const res = await fetch(`/api/orders?instagramId=${encodeURIComponent(igId)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          results.innerHTML = `<div class="message error">${data.error || "Terjadi kesalahan."}</div>`;
+          return;
+        }
+
+        if (!data.orders || data.orders.length === 0) {
+          results.innerHTML = `<div class="message">Tidak ada pesanan ditemukan untuk @${escapeHtml(igId)}</div>`;
+          return;
+        }
+
+        renderOrders(data.orders, data.summary, igId);
+      } catch (err) {
+        results.innerHTML = '<div class="message error">Gagal terhubung ke server. Silakan coba lagi.</div>';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Cari";
+      }
+    });
+
+    function escapeHtml(s) {
+      const d = document.createElement("div");
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function renderOrders(orders, summary) {
+      // Group by Event ID
+      const groups = {};
+      const groupOrder = [];
+      orders.forEach((o) => {
+        const eid = o.eventId || "—";
+        if (!groups[eid]) {
+          groups[eid] = [];
+          groupOrder.push(eid);
+        }
+        groups[eid].push(o);
+      });
+
+      let html = "";
+
+      groupOrder.forEach((eid) => {
+        const rows = groups[eid];
+        html += `
+          <div class="event-group">
+            <div class="event-header">Event: ${escapeHtml(eid)}</div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Instagram ID</th>
+                    <th>Event ID</th>
+                    <th>Order</th>
+                    <th>Unit</th>
+                    <th>Price</th>
+                    <th>Subtotal</th>
+                    <th>Berat (kg)</th>
+                    <th>Arrived Unit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rows.map((r) => `
+                    <tr>
+                      <td>${escapeHtml(r.instagramId)}</td>
+                      <td>${escapeHtml(r.eventId)}</td>
+                      <td>${escapeHtml(r.order)}</td>
+                      <td>${escapeHtml(r.unit)}</td>
+                      <td>${escapeHtml(r.price)}</td>
+                      <td>${escapeHtml(r.subtotal)}</td>
+                      <td>${escapeHtml(r.berat)}</td>
+                      <td></td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+      });
+
+      if (summary) {
+        html += `
+          <div class="summary-card">
+            <h3>Ringkasan</h3>
+            <div class="summary-row">
+              <span class="label">Total Subtotal</span>
+              <span class="value">Rp ${formatNumber(summary.totalSubtotal)}</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">Total Berat</span>
+              <span class="value">${formatNumber(summary.totalWeight)} kg</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">Ongkos Kirim (${formatNumber(summary.shippingFeePerKg)}/kg)</span>
+              <span class="value">Rp ${formatNumber(summary.totalShippingFee)}</span>
+            </div>
+          </div>`;
+      }
+
+      results.innerHTML = html;
+    }
+  </script>
+</body>
+</html>

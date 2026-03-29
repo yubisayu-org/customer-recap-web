@@ -1,0 +1,9 @@
+{
+  "name": "customer-recap-web",
+  "version": "1.0.0",
+  "description": "Purchase order viewer - lookup orders by Instagram ID",
+  "dependencies": {
+    "googleapis": "^144.0.0",
+    "google-auth-library": "^9.14.0"
+  }
+}
