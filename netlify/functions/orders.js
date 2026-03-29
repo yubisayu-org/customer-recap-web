@@ -42,7 +42,7 @@ async function getSheetData() {
   const sheets = google.sheets({ version: "v4", auth });
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env.SPREADSHEET_ID,
-    range: "Sheet1",
+    range: "Private-INT_2026",
   });
 
   cachedData = response.data.values || [];
@@ -89,8 +89,8 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ orders: [], summary: null }) };
     }
 
-    // Header row: Order ID, Instagram ID, Event ID, Order, Unit, Price, Subtotal, Berat, Shipping Fee (per kg)
-    // Indices:     0         1              2         3      4     5      6         7      8
+    // Header row: Event, Customer, Order ID, Order, Unit, Price, UnitArrive, Subtotal, Ongkir, Berat
+    // Indices:     0      1         2         3      4     5      6           7         8       9
     const dataRows = rows.slice(1);
 
     const matchingRows = dataRows.filter((row) => {
@@ -104,30 +104,34 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ orders: [], summary: null }) };
     }
 
-    // Strip Order ID (index 0), return remaining columns
+    // Strip Order ID (index 2), return remaining columns
     const orders = matchingRows.map((row) => ({
+      eventId: row[0] || "",
       instagramId: row[1] || "",
-      eventId: row[2] || "",
       order: row[3] || "",
       unit: row[4] || "",
       price: row[5] || "",
-      subtotal: row[6] || "",
-      berat: row[7] || "",
-      shippingFeePerKg: row[8] || "",
+      unitArrive: row[6] || "",
+      subtotal: row[7] || "",
+      ongkir: row[8] || "",
+      berat: row[9] || "",
     }));
 
     // Calculate summary
     const totalSubtotal = matchingRows.reduce((sum, row) => {
-      return sum + (parseFloat(String(row[6] || "0").replace(/,/g, "")) || 0);
-    }, 0);
-
-    const totalWeight = matchingRows.reduce((sum, row) => {
       return sum + (parseFloat(String(row[7] || "0").replace(/,/g, "")) || 0);
     }, 0);
 
-    const ceiledWeight = Math.ceil(totalWeight);
+    // Total weight = sum of (Berat in grams × Unit) converted to kg, then ceil
+    const totalWeightGrams = matchingRows.reduce((sum, row) => {
+      const berat = parseFloat(String(row[9] || "0").replace(/,/g, "")) || 0;
+      const unit = parseFloat(String(row[4] || "0").replace(/,/g, "")) || 0;
+      return sum + berat * unit;
+    }, 0);
 
-    // Use shipping fee per kg from the first matching row
+    const ceiledWeight = Math.ceil(totalWeightGrams / 1000);
+
+    // Use ongkir per kg from the first matching row
     const shippingFeePerKg =
       parseFloat(String(matchingRows[0][8] || "0").replace(/,/g, "")) || 0;
     const totalShippingFee = shippingFeePerKg * ceiledWeight;

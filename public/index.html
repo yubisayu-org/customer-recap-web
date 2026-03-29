@@ -77,7 +77,8 @@
 
     .message.error { color: #e53e3e; }
 
-    .event-group {
+    /* Event card */
+    .event-card {
       background: #fff;
       border-radius: 10px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -85,11 +86,33 @@
       overflow: hidden;
     }
 
-    .event-header {
+    .event-card-header {
       background: #667eea;
       color: #fff;
       padding: 0.75rem 1.25rem;
-      font-weight: 600;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .event-card-header .header-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.9rem;
+    }
+
+    .event-card-header .header-label {
+      opacity: 0.8;
+      font-size: 0.8rem;
+    }
+
+    .event-card-header .header-value {
+      font-weight: 700;
       font-size: 0.95rem;
     }
 
@@ -102,12 +125,13 @@
     }
 
     thead th {
-      background: #f0f0f0;
-      padding: 0.6rem 0.75rem;
+      background: #f0f4ff;
+      color: #3c3c8a;
+      padding: 0.65rem 0.75rem;
       text-align: left;
       font-weight: 600;
       white-space: nowrap;
-      border-bottom: 2px solid #ddd;
+      border-bottom: 2px solid #d0d8f8;
     }
 
     tbody td {
@@ -117,6 +141,13 @@
 
     tbody tr:last-child td { border-bottom: none; }
 
+    tr.event-total td {
+      background: #f7f7f7;
+      font-weight: 600;
+      border-top: 2px solid #ddd;
+    }
+
+    /* Summary card */
     .summary-card {
       background: #fff;
       border-radius: 10px;
@@ -148,6 +179,7 @@
       .search-box button { width: 100%; }
       table { font-size: 0.8rem; }
       thead th, tbody td { padding: 0.5rem; }
+      .event-card-header { gap: 0.4rem 1rem; }
     }
   </style>
 </head>
@@ -202,7 +234,7 @@
           return;
         }
 
-        renderOrders(data.orders, data.summary, igId);
+        renderOrders(data.orders, data.summary);
       } catch (err) {
         results.innerHTML = '<div class="message error">Gagal terhubung ke server. Silakan coba lagi.</div>';
       } finally {
@@ -218,52 +250,73 @@
     }
 
     function renderOrders(orders, summary) {
-      // Group by Event ID
+      // Group by Event ID, preserving order
       const groups = {};
       const groupOrder = [];
       orders.forEach((o) => {
         const eid = o.eventId || "—";
-        if (!groups[eid]) {
-          groups[eid] = [];
-          groupOrder.push(eid);
-        }
+        if (!groups[eid]) { groups[eid] = []; groupOrder.push(eid); }
         groups[eid].push(o);
       });
+
+      const customer = orders[0].instagramId;
+      const ongkirPerKg = summary ? summary.shippingFeePerKg : 0;
 
       let html = "";
 
       groupOrder.forEach((eid) => {
         const rows = groups[eid];
+
+        const evTotalUnit     = rows.reduce((s, r) => s + parseNum(r.unit), 0);
+        const evTotalSubtotal = rows.reduce((s, r) => s + parseNum(r.subtotal), 0);
+        const evTotalArrive   = rows.reduce((s, r) => s + parseNum(r.unitArrive), 0);
+
         html += `
-          <div class="event-group">
-            <div class="event-header">Event: ${escapeHtml(eid)}</div>
+          <div class="event-card">
+            <div class="event-card-header">
+              <div class="header-item">
+                <span class="header-label">Customer</span>
+                <span class="header-value">@${escapeHtml(customer)}</span>
+              </div>
+              <div class="header-item">
+                <span class="header-label">Event</span>
+                <span class="header-value">${escapeHtml(eid)}</span>
+              </div>
+              <div class="header-item">
+                <span class="header-label">Ongkir</span>
+                <span class="header-value">Rp ${formatNumber(ongkirPerKg)}/kg</span>
+              </div>
+            </div>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Instagram ID</th>
-                    <th>Event ID</th>
+                    <th>Pembayaran</th>
                     <th>Order</th>
                     <th>Unit</th>
                     <th>Price</th>
                     <th>Subtotal</th>
-                    <th>Berat (kg)</th>
-                    <th>Arrived Unit</th>
+                    <th>Unit Arrive</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${rows.map((r) => `
                     <tr>
-                      <td>${escapeHtml(r.instagramId)}</td>
-                      <td>${escapeHtml(r.eventId)}</td>
+                      <td></td>
                       <td>${escapeHtml(r.order)}</td>
                       <td>${escapeHtml(r.unit)}</td>
                       <td>${escapeHtml(r.price)}</td>
                       <td>${escapeHtml(r.subtotal)}</td>
-                      <td>${escapeHtml(r.berat)}</td>
-                      <td></td>
+                      <td>${r.unitArrive !== "" ? escapeHtml(r.unitArrive) : "0"}</td>
                     </tr>
                   `).join("")}
+                  <tr class="event-total">
+                    <td colspan="2">${escapeHtml(eid)} Total</td>
+                    <td>${evTotalUnit}</td>
+                    <td></td>
+                    <td>${formatNumber(evTotalSubtotal)}</td>
+                    <td>${evTotalArrive}</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -283,7 +336,7 @@
               <span class="value">${formatNumber(summary.totalWeight)} kg</span>
             </div>
             <div class="summary-row">
-              <span class="label">Ongkos Kirim (${formatNumber(summary.shippingFeePerKg)}/kg)</span>
+              <span class="label">Ongkos Kirim (Rp ${formatNumber(summary.shippingFeePerKg)}/kg)</span>
               <span class="value">Rp ${formatNumber(summary.totalShippingFee)}</span>
             </div>
           </div>`;
