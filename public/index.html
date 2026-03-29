@@ -213,6 +213,27 @@
     .r-value.sisa-positive { color: #e53e3e; }
     .r-value.sisa-zero     { color: #38a169; }
 
+    /* Copy button */
+    .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 0.4rem;
+      padding: 0.15rem;
+      color: #5c0a14;
+      background: none;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      vertical-align: middle;
+      transition: color 0.15s;
+      user-select: none;
+      line-height: 1;
+    }
+
+    .copy-btn:hover { color: #4a0810; }
+    .copy-btn.copied { color: #38a169; }
+
     /* Remarks */
     .remarks {
       margin-top: 0.5rem;
@@ -266,6 +287,11 @@
       return new Intl.NumberFormat("id-ID").format(n);
     }
 
+    // ── Account numbers ──────────────────────────────
+    const ACCOUNT_BCA  = "4419051991";
+    const ACCOUNT_JAGO = "103382719370";
+    // ─────────────────────────────────────────────────
+
     function parseNum(v) {
       return parseFloat(String(v || "0").replace(/,/g, "")) || 0;
     }
@@ -303,6 +329,20 @@
       }
     });
 
+    const COPY_ICON  = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+    const CHECK_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+    function copyNumber(btn, number) {
+      navigator.clipboard.writeText(number).then(() => {
+        btn.innerHTML = CHECK_ICON;
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.innerHTML = COPY_ICON;
+          btn.classList.remove("copied");
+        }, 2000);
+      });
+    }
+
     function escapeHtml(s) {
       const d = document.createElement("div");
       d.textContent = s;
@@ -328,8 +368,8 @@
           Jika rekapan sudah sesuai, bisa langsung transfer (tidak perlu tunggu diinvoice admin) ke:<br>
           <br>
           Rekening a/n Shinta Michiko<br>
-          BCA <strong>4419051991</strong><br>
-          JAGO <strong>103382719370</strong><br>
+          BCA <strong>${ACCOUNT_BCA}</strong><button class="copy-btn" onclick="copyNumber(this, '${ACCOUNT_BCA}')" title="Copy"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><br>
+          JAGO <strong>${ACCOUNT_JAGO}</strong><button class="copy-btn" onclick="copyNumber(this, '${ACCOUNT_JAGO}')" title="Copy"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><br>
           <br>
           Bukti transfer jangan lupa dikirim ke <a href="https://ig.me/m/yubisayu.id" target="_blank" rel="noopener noreferrer" style="color:#5c0a14;font-weight:600;">@yubisayu.id</a> untuk diverifikasi, terima kasih!
         </div>`;
@@ -360,7 +400,7 @@
               </div>
               <div class="header-item">
                 <span class="header-label">Ongkir</span>
-                <span class="header-value">Rp ${formatNumber(ongkirPerKg)}/kg</span>
+                <span class="header-value">Rp ${formatNumber(ongkirPerKg)} per kg</span>
               </div>
             </div>
             <div class="table-wrap">
