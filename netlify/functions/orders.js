@@ -89,8 +89,8 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ orders: [], summary: null }) };
     }
 
-    // Header row: Event, Customer, Order ID, Order, Unit, Price, UnitArrive, Subtotal, Ongkir, Berat, BeratUnit, Pembayaran
-    // Indices:     0      1         2         3      4     5      6           7         8       9      10         11
+    // Header row: Event, Customer, Order ID, Order, Unit, Price, UnitArrive, Subtotal, Ongkir, Berat, BeratUnit, Pembayaran, ETA, Status, TanggalKirim, Resi, BiayaLainnya, Total, SisaPelunasan, SubtotalBarang
+    // Indices:     0      1         2         3      4     5      6           7         8       9      10         11         12    13      14            15    16            17     18             19
     const dataRows = rows.slice(1);
 
     const matchingRows = dataRows.filter((row) => {
@@ -117,6 +117,14 @@ exports.handler = async (event) => {
       berat: row[9] || "",
       beratUnit: row[10] || "",
       pembayaran: row[11] || "",
+      eta: row[12] || "",
+      status: row[13] || "",
+      tanggalKirim: row[14] || "",
+      resi: row[15] || "",
+      biayaLainnya: row[16] || "",
+      total: row[17] || "",
+      sisaPelunasan: row[18] || "",
+      subtotalBarang: row[19] || "",
     }));
 
     const shippingFeePerKg =
