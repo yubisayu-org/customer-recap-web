@@ -174,6 +174,12 @@
       white-space: nowrap;
     }
 
+    .event-card-header .header-badge-with-copy {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
     .event-card-header .header-badge-link {
       color: #fff;
       text-decoration: underline;
@@ -307,6 +313,10 @@
     .copy-btn:hover { color: #4a0810; }
     .copy-btn.copied { color: #38a169; }
 
+    .copy-btn-light { color: #fff; }
+    .copy-btn-light:hover { color: rgba(255,255,255,0.7); }
+    .copy-btn-light.copied { color: #6ee7a0; }
+
     /* Remarks */
     .remarks {
       margin-top: 0.5rem;
@@ -359,6 +369,17 @@
         flex-direction: row;
         align-items: center;
         gap: 0.5rem;
+      }
+      .header-item--shipment {
+        flex-direction: row !important;
+        align-items: center !important;
+        flex-wrap: wrap;
+        gap: 0.3rem 0.4rem !important;
+      }
+      .header-item--inline {
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
       }
     }
   </style>
@@ -513,9 +534,9 @@
         const evEta = rows[0].eta || "";
         const evStatus = rows[0].status || "";
         const evTanggalList = rows[0].tanggalKirim ? rows[0].tanggalKirim.split("\n").map(s => s.trim()).filter(Boolean) : [];
-        const evResiList    = rows[0].resi          ? rows[0].resi.split("\n").map(s => s.trim().replace(/^'+/, "")).filter(Boolean) : [];
+        const evResiList    = rows[0].resi          ? rows[0].resi.split("\n").map(s => s.trim().replace(/^[\u0027\u2018\u2019\u02B9\u0060]+/, "")).filter(Boolean) : [];
         const evShipments   = evResiList.map((resi, i) => ({ resi, tgl: evTanggalList[i] || "" }));
-        const showShipments = evShipments.length > 0 && (evStatus === "Completed" || evStatus.includes("Partly Shipped"));
+        const showShipments = evShipments.length > 0 && (evStatus === "Completed" || evStatus.includes("Shipped"));
         const total = evShipments.length;
 
         html += `
@@ -529,14 +550,14 @@
                   <span class="header-value">${escapeHtml(eid)}</span>
                   ${evEta ? `<span class="header-value-normal">${escapeHtml(evEta)}</span>` : ""}
                 </div>
-                ${evStatus ? `<div class="header-item">
+                ${evStatus ? `<div class="header-item header-item--inline">
                   <span class="header-label">Status</span>
-                  <span class="header-value">${escapeHtml(evStatus)}</span>
-                </div>` : ""}
-                ${showShipments ? evShipments.map((s, i) => `<div class="header-item">
-                  <a class="header-label header-badge-link" href="https://jne.co.id/en/tracking-package" target="_blank" rel="noopener noreferrer">Resi ${total > 1 ? `${i + 1}/${total}` : ""}</a>
+                  <span class="header-value">${escapeHtml(evStatus)}</span>` : "" }
+                </div>
+                ${showShipments ? evShipments.map((s, i) => `<div class="header-item header-item--shipment">
+                  <span class="header-label">Resi ${total > 1 ? `${i + 1}/${total}` : ""}</span>
                   <div class="header-badges">
-                    <button class="header-badge header-badge-copy" onclick="copyBadge(this, '${escapeHtml(s.resi)}')" title="Copy resi"><span>${escapeHtml(s.resi)}</span>${COPY_ICON}</button>
+                    <span class="header-badge header-badge-with-copy"><a class="header-badge-link" href="https://jne.co.id/en/tracking-package" target="_blank" rel="noopener noreferrer">${escapeHtml(s.resi)}</a><button class="copy-btn copy-btn-light" onclick="copyNumber(this, '${escapeHtml(s.resi)}')" title="Copy resi">${COPY_ICON}</button></span>
                     ${s.tgl ? `<span class="header-badge">${escapeHtml(s.tgl)}</span>` : ""}
                   </div>
                 </div>`).join("") : ""}
