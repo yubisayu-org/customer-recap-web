@@ -673,7 +673,7 @@
         body: (instagramId, eventId, sisaValue) => {
           const formattedSisa = new Intl.NumberFormat("id-ID").format(sisaValue);
           const waMsg = encodeURIComponent(`Dear Mba Yu, berikut detail rekening @${instagramId} untuk pengembalian dana ${eventId} sejumlah Rp ${formattedSisa}:\nNama Pemilik Rekening:\nNomor Rekening:\nNama Bank:`);
-          return `<p>Silakan kirim nomor rekening dan nama pemilik rekening lewat <a href="https://ig.me/m/yubisayu.id" target="_blank" rel="noopener noreferrer" style="color:#5c0a14;font-weight:600;">Instagram Message</a> dan/atau <a href="https://wa.me/62811905159?text=${waMsg}" target="_blank" rel="noopener noreferrer" style="color:#5c0a14;font-weight:600;">Whatsapp</a> untuk mempercepat proses pengembalian dana. Alternatifnya, bisa juga tunggu dikontak sesuai urutan.</p>`;
+          return `<p>Silakan kirim nomor rekening dan nama pemilik rekening lewat <a href="https://ig.me/m/yubisayu.id" target="_blank" rel="noopener noreferrer" style="color:#5c0a14;font-weight:600;">Instagram Message</a> atau <a href="https://wa.me/62811905159?text=${waMsg}" target="_blank" rel="noopener noreferrer" style="color:#5c0a14;font-weight:600;">Whatsapp</a> untuk mempercepat proses pengembalian dana. Alternatifnya, bisa juga tunggu dikontak sesuai urutan.</p>`;
         }
       }
     };
