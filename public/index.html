@@ -423,6 +423,29 @@
       color: #5c0a14;
       white-space: nowrap;
     }
+    .info-popup-body .qris-img {
+      display: block;
+      width: 100%;
+      max-width: 280px;
+      margin: 0 auto;
+      border-radius: 8px;
+    }
+    .info-popup-body .qris-download-btn {
+      display: block;
+      margin: 0.85rem auto 0;
+      width: fit-content;
+      background: #5c0a14;
+      color: #fff;
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 0.4rem 1rem;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .info-popup-body .qris-download-btn:hover {
+      background: #7a1020;
+    }
 
     .info-popup-close {
       position: absolute;
@@ -437,6 +460,25 @@
       padding: 0.2rem;
     }
     .info-popup-close:hover { color: #555; }
+
+    .qris-btn {
+      display: inline;
+      background: none;
+      border: 1.5px solid #5c0a14;
+      color: #5c0a14;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border-radius: 4px;
+      padding: 0.1rem 0.45rem;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: background 0.15s, color 0.15s;
+      vertical-align: middle;
+    }
+    .qris-btn:hover {
+      background: #5c0a14;
+      color: #fff;
+    }
 
     /* Remarks */
     .remarks {
@@ -622,6 +664,10 @@
           </div>
         `
       },
+      qris: {
+        title: "Pembayaran QRIS",
+        body: `<img src="/qris.png" alt="QR Code QRIS" class="qris-img"><a href="/qris.png" download="QRIS-Yubisayu.png" class="qris-download-btn">&#8681; Download QRIS</a>`
+      },
       pengembalianDana: {
         title: "Pengembalian Dana",
         body: (instagramId, eventId, sisaValue) => {
@@ -672,6 +718,8 @@
           Rekening a/n Shinta Michiko<br>
           BCA <strong>${ACCOUNT_BCA}</strong><button class="copy-btn" onclick="copyNumber(this, '${ACCOUNT_BCA}')" title="Copy"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><br>
           JAGO <strong>${ACCOUNT_JAGO}</strong><button class="copy-btn" onclick="copyNumber(this, '${ACCOUNT_JAGO}')" title="Copy"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><br>
+          <br>
+          Pembayaran dibawah Rp200.000,00 bisa melalui <button class="qris-btn" onclick="showInfoPopup('qris')">QRIS</button><br>
           <br>
           Bukti transfer jangan lupa kirim ke <a href="https://ig.me/m/yubisayu.id" target="_blank" rel="noopener noreferrer" style="color:#5c0a14;font-weight:600;">@yubisayu.id</a> untuk diverifikasi, terima kasih!
         </div>`;
