@@ -21,10 +21,7 @@ function isRateLimited(ip) {
   }
 
   entry.count++;
-  if (entry.count > RATE_LIMIT_MAX) {
-    return true;
-  }
-  return false;
+  return entry.count > RATE_LIMIT_MAX;
 }
 
 async function getSheetData() {
@@ -50,6 +47,153 @@ async function getSheetData() {
   return cachedData;
 }
 
+// --- Column indices ---
+// 0: Event, 1: Customer, 2: Order ID (stripped), 3: Order, 4: Unit,
+// 5: Price, 6: UnitArrive, 7: Subtotal, 8: Ongkir, 9: Berat,
+// 10: BeratUnit, 11: Pembayaran, 12: ETA, 13: Status,
+// 14: TanggalKirim, 15: Resi, 16: BiayaLainnya,
+// 17: Total, 18: SisaPelunasan, 19: SubtotalBarang
+const COL = {
+  EVENT: 0,
+  CUSTOMER: 1,
+  ORDER_ID: 2,
+  ORDER: 3,
+  UNIT: 4,
+  PRICE: 5,
+  UNIT_ARRIVE: 6,
+  SUBTOTAL: 7,
+  ONGKIR: 8,
+  BERAT: 9,
+  BERAT_UNIT: 10,
+  PEMBAYARAN: 11,
+  ETA: 12,
+  STATUS: 13,
+  TANGGAL_KIRIM: 14,
+  RESI: 15,
+  BIAYA_LAINNYA: 16,
+  TOTAL: 17,
+  SISA_PELUNASAN: 18,
+  SUBTOTAL_BARANG: 19,
+};
+
+function parseNum(v) {
+  return parseFloat(String(v || "0").replace(/,/g, "")) || 0;
+}
+
+/**
+ * Clean leading apostrophe variants from resi numbers.
+ * Google Sheets sometimes prepends these to force text formatting.
+ */
+function cleanResi(s) {
+  return s.trim().replace(/^[\u0027\u2018\u2019\u02B9\u0060]+/, "");
+}
+
+/**
+ * Parse multi-line resi and tanggal kirim into shipment objects.
+ */
+function parseShipments(resiRaw, tanggalRaw, status) {
+  const resiList = resiRaw
+    ? resiRaw.split("\n").map(cleanResi).filter(Boolean)
+    : [];
+  const tanggalList = tanggalRaw
+    ? tanggalRaw.split("\n").map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  const shipments = resiList.map((resi, i) => ({
+    resi,
+    tanggalKirim: tanggalList[i] || "",
+  }));
+
+  const showShipments =
+    shipments.length > 0 &&
+    (status === "Completed" || (status && status.includes("Shipped")));
+
+  return { shipments, showShipments };
+}
+
+/**
+ * Group matching rows into structured event objects with pre-computed values.
+ */
+function buildEventGroups(matchingRows, ongkirPerKg) {
+  const groups = {};
+  const groupOrder = [];
+
+  for (const row of matchingRows) {
+    const eid = row[COL.EVENT] || "";
+    if (!groups[eid]) {
+      groups[eid] = [];
+      groupOrder.push(eid);
+    }
+    groups[eid].push(row);
+  }
+
+  return groupOrder.map((eid) => {
+    const rows = groups[eid];
+    const firstRow = rows[0];
+
+    // Per-order data (for table display)
+    const orders = rows.map((row) => ({
+      order: row[COL.ORDER] || "",
+      unit: parseNum(row[COL.UNIT]),
+      price: row[COL.PRICE] || "",
+      subtotal: row[COL.SUBTOTAL] || "",
+      unitArrive: parseNum(row[COL.UNIT_ARRIVE]),
+    }));
+
+    // Aggregate totals
+    const totalUnit = orders.reduce((s, o) => s + o.unit, 0);
+    const totalSubtotal = rows.reduce(
+      (s, r) => s + parseNum(r[COL.SUBTOTAL]),
+      0
+    );
+    const totalArrive = orders.reduce((s, o) => s + o.unitArrive, 0);
+    const totalBeratUnit = rows.reduce(
+      (s, r) => s + parseNum(r[COL.BERAT_UNIT]),
+      0
+    );
+    const weightKg = Math.ceil(totalBeratUnit / 1000);
+    const estimasiOngkir = ongkirPerKg * weightKg;
+
+    // Invoice values (pre-calculated in sheet, read from first row)
+    const subtotalBarang = parseNum(firstRow[COL.SUBTOTAL_BARANG]);
+    const biayaLainnya = parseNum(firstRow[COL.BIAYA_LAINNYA]);
+    const total = parseNum(firstRow[COL.TOTAL]);
+    const pembayaran = parseNum(firstRow[COL.PEMBAYARAN]);
+    const sisaPelunasan = parseNum(firstRow[COL.SISA_PELUNASAN]);
+
+    // Shipping info
+    const status = firstRow[COL.STATUS] || "";
+    const { shipments, showShipments } = parseShipments(
+      firstRow[COL.RESI] || "",
+      firstRow[COL.TANGGAL_KIRIM] || "",
+      status
+    );
+
+    return {
+      eventId: eid,
+      eta: firstRow[COL.ETA] || "",
+      status,
+      shipments,
+      showShipments,
+      orders,
+      totals: {
+        unit: totalUnit,
+        subtotal: totalSubtotal,
+        arrive: totalArrive,
+        weightKg,
+      },
+      invoice: {
+        subtotalBarang: subtotalBarang || totalSubtotal,
+        estimasiOngkir,
+        biayaLainnya,
+        total,
+        pembayaran,
+        sisaPelunasan,
+      },
+    };
+  });
+}
+
 exports.handler = async (event) => {
   const headers = {
     "Content-Type": "application/json",
@@ -57,17 +201,25 @@ exports.handler = async (event) => {
   };
 
   if (event.httpMethod !== "GET") {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: "Method not allowed" }),
+    };
   }
 
   // Rate limiting
-  const ip = event.headers["x-forwarded-for"] || event.headers["client-ip"] || "unknown";
+  const ip =
+    event.headers["x-forwarded-for"] ||
+    event.headers["client-ip"] ||
+    "unknown";
   if (isRateLimited(ip)) {
     return {
       statusCode: 429,
       headers,
       body: JSON.stringify({
-        error: "Terlalu banyak permintaan. Silakan coba lagi dalam satu menit.",
+        error:
+          "Terlalu banyak permintaan. Silakan coba lagi dalam satu menit.",
       }),
     };
   }
@@ -86,61 +238,51 @@ exports.handler = async (event) => {
   try {
     const rows = await getSheetData();
     if (rows.length < 2) {
-      return { statusCode: 200, headers, body: JSON.stringify({ orders: [], summary: null }) };
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ customer: "", events: [] }),
+      };
     }
 
-    // Header row: Event, Customer, Order ID, Order, Unit, Price, UnitArrive, Subtotal, Ongkir, Berat, BeratUnit, Pembayaran, ETA, Status, TanggalKirim, Resi, BiayaLainnya, Total, SisaPelunasan, SubtotalBarang
-    // Indices:     0      1         2         3      4     5      6           7         8       9      10         11         12    13      14            15    16            17     18             19
     const dataRows = rows.slice(1);
 
     const matchingRows = dataRows.filter((row) => {
-      // Filter completely empty rows
-      if (!row || row.every((cell) => !cell || String(cell).trim() === "")) return false;
-      const rowIg = (row[1] || "").replace(/^@/, "").toLowerCase();
+      if (!row || row.every((cell) => !cell || String(cell).trim() === ""))
+        return false;
+      const rowIg = (row[COL.CUSTOMER] || "").replace(/^@/, "").toLowerCase();
       return rowIg === searchId;
     });
 
     if (matchingRows.length === 0) {
-      return { statusCode: 200, headers, body: JSON.stringify({ orders: [], shippingFeePerKg: 0 }) };
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ customer: "", events: [] }),
+      };
     }
 
-    // Strip Order ID (index 2), return remaining columns
-    const orders = matchingRows.map((row) => ({
-      eventId: row[0] || "",
-      instagramId: row[1] || "",
-      order: row[3] || "",
-      unit: row[4] || "",
-      price: row[5] || "",
-      unitArrive: row[6] || "",
-      subtotal: row[7] || "",
-      ongkir: row[8] || "",
-      berat: row[9] || "",
-      beratUnit: row[10] || "",
-      pembayaran: row[11] || "",
-      eta: row[12] || "",
-      status: row[13] || "",
-      tanggalKirim: row[14] || "",
-      resi: row[15] || "",
-      biayaLainnya: row[16] || "",
-      total: row[17] || "",
-      sisaPelunasan: row[18] || "",
-      subtotalBarang: row[19] || "",
-    }));
+    const customer = matchingRows[0][COL.CUSTOMER] || "";
+    const ongkirPerKg =
+      parseFloat(
+        String(matchingRows[0][COL.ONGKIR] || "0").replace(/,/g, "")
+      ) || 0;
 
-    const shippingFeePerKg =
-      parseFloat(String(matchingRows[0][8] || "0").replace(/,/g, "")) || 0;
+    const events = buildEventGroups(matchingRows, ongkirPerKg);
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ orders, shippingFeePerKg }),
+      body: JSON.stringify({ customer, events }),
     };
   } catch (err) {
     console.error("Error fetching sheet data:", err);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: "Gagal mengambil data. Silakan coba lagi nanti." }),
+      body: JSON.stringify({
+        error: "Gagal mengambil data. Silakan coba lagi nanti.",
+      }),
     };
   }
 };
