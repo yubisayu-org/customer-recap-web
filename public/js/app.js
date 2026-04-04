@@ -49,7 +49,7 @@ form.addEventListener("submit", async (e) => {
   const igId = raw.replace(/^@/, "");
   btn.disabled = true;
   btn.textContent = "Mencari...";
-  results.innerHTML = '<div class="message">Memuat data...</div>';
+  results.innerHTML = '<div class="message"><div class="loader"></div>Memuat data...</div>';
 
   try {
     const res = await fetch(

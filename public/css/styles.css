@@ -100,6 +100,20 @@ body {
 
 .message.error { color: #e53e3e; }
 
+.loader {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid #e0d8cc;
+  border-top-color: #5c0a14;
+  border-radius: 50%;
+  margin: 0 auto 0.75rem;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ── Event card ──────────────────────────────────── */
 .event-card {
   background: #fff;
