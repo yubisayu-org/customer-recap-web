@@ -135,12 +135,12 @@ function buildRingkasan(ev, customer) {
         <span class="r-value">Rp ${formatNumber(estimasiOngkir)}</span>
       </div>
       ${biayaLainnya > 0 ? `<div class="ringkasan-row ringkasan-row--no-bottom">
-        <span class="r-label">Diskon</span>
-        <span class="r-value">- Rp ${formatNumber(biayaLainnya)}</span>
+        <span class="r-label">Biaya Lainnya</span>
+        <span class="r-value">+ Rp ${formatNumber(biayaLainnya)}</span>
       </div>` : ""}
       ${biayaLainnya < 0 ? `<div class="ringkasan-row ringkasan-row--no-bottom">
-        <span class="r-label">Biaya Lainnya</span>
-        <span class="r-value">+ Rp ${formatNumber(Math.abs(biayaLainnya))}</span>
+        <span class="r-label">Diskon</span>
+        <span class="r-value">- Rp ${formatNumber(Math.abs(biayaLainnya))}</span>
       </div>` : ""}
       ${total ? `<div class="ringkasan-row ringkasan-row--separator">
         <span class="r-label">Total</span>
