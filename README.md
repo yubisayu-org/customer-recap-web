@@ -1,93 +1,72 @@
 # Purchase Order Viewer
 
-Website untuk pelanggan melihat pesanan mereka dengan memasukkan Instagram ID. Data diambil dari Google Sheet privat.
+Website untuk pelanggan melihat pesanan mereka dengan memasukkan Instagram ID.
+Data diambil dari **Supabase** (database yang sama dengan `inventory-dashboard-v2`)
+melalui endpoint publik read-only milik dashboard.
+
+## Arsitektur
+
+```
+Browser (public/)
+  └── GET /api/orders?instagramId=...        (Netlify function, same-origin)
+        └── GET ${INVOICE_API_URL}?customer=...   (dashboard public invoice API)
+              └── Supabase (role read-only `invoice_reader`)
+```
+
+Netlify function (`netlify/functions/orders.js`) bertindak sebagai proxy
+server-side: normalisasi handle Instagram, rate-limit, cache per-customer (60 dtk),
+lalu meneruskan ke endpoint publik dashboard dan mengembalikan `{ customer, events }`.
+Endpoint dashboard hanya membaca order, pembayaran, status pengiriman, dan resi —
+**tidak pernah** nama, WhatsApp, alamat, atau data rekening.
 
 ## Setup
 
-### 1. Buat Google Cloud Service Account
+### 1. Prasyarat di `inventory-dashboard-v2`
 
-1. Buka [Google Cloud Console](https://console.cloud.google.com/)
-2. Buat project baru atau pilih project yang sudah ada
-3. Aktifkan **Google Sheets API**:
-   - Buka **APIs & Services > Library**
-   - Cari "Google Sheets API" dan klik **Enable**
-4. Buat Service Account:
-   - Buka **APIs & Services > Credentials**
-   - Klik **Create Credentials > Service Account**
-   - Isi nama (misal: `sheets-reader`), lalu klik **Create and Continue**
-   - Skip role assignment, klik **Done**
-5. Buat key JSON:
-   - Klik service account yang baru dibuat
-   - Buka tab **Keys**
-   - Klik **Add Key > Create new key > JSON**
-   - File JSON akan terunduh — simpan isinya untuk digunakan nanti
+Endpoint publik `GET /api/public/invoice` harus aktif dan role read-only siap:
 
-### 2. Bagikan Google Sheet ke Service Account
+1. Jalankan migrasi Supabase: `018_invoice_reader_role.sql` dan
+   `020_invoice_reader_shipments.sql` (`supabase db push`).
+2. Set password role secara out-of-band:
+   `ALTER ROLE invoice_reader WITH PASSWORD '<strong-secret>';`
+3. Set env `INVOICE_READER_DATABASE_URL` di deployment dashboard, menunjuk ke
+   role `invoice_reader` via Supabase pooler.
 
-1. Buka Google Sheet yang berisi data pesanan
-2. Klik **Share**
-3. Masukkan email service account (formatnya seperti `nama@project-id.iam.gserviceaccount.com`)
-4. Pilih akses **Viewer** (baca saja)
-5. Klik **Send**
-
-### 3. Struktur Google Sheet
-
-Sheet harus punya satu tab dengan kolom-kolom berikut (baris pertama sebagai header):
-
-| Order ID | Instagram ID | Event ID | Order | Unit | Price | Subtotal | Berat | Shipping Fee (per kg) |
-|----------|-------------|----------|-------|------|-------|----------|-------|-----------------------|
-
-- **Order ID**: Internal, tidak ditampilkan ke user
-- **Berat**: Berat dalam kg
-- **Shipping Fee (per kg)**: Tarif ongkos kirim per kg
-
-### 4. Konfigurasi Netlify Environment Variables
+### 2. Konfigurasi Netlify Environment Variables
 
 Di Netlify dashboard, buka **Site settings > Environment variables** dan tambahkan:
 
-- **`GOOGLE_SERVICE_ACCOUNT_JSON`**: Paste seluruh isi file JSON service account (satu baris, tanpa line break)
-- **`SPREADSHEET_ID`**: ID dari Google Sheet (ambil dari URL: `https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit`)
+- **`INVOICE_API_URL`**: URL endpoint publik invoice dashboard, contoh:
+  `https://<domain-dashboard>/api/public/invoice`
 
-### 5. Deploy via GitHub
+### 3. Deploy via GitHub
 
-1. Push repository ini ke GitHub:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git remote add origin https://github.com/username/customer-recap-web.git
-   git push -u origin main
-   ```
-
+1. Push repository ini ke GitHub.
 2. Di [Netlify](https://app.netlify.com/):
    - Klik **Add new site > Import an existing project**
    - Pilih repository dari GitHub
-   - Build settings akan otomatis terdeteksi dari `netlify.toml`
+   - Build settings otomatis terdeteksi dari `netlify.toml`
    - Klik **Deploy site**
-
-3. Set environment variables sesuai langkah 4
-
-4. Trigger redeploy jika environment variables ditambahkan setelah deploy pertama
+3. Set environment variable sesuai langkah 2.
+4. Trigger redeploy jika environment variable ditambahkan setelah deploy pertama.
 
 ## Development Lokal
 
 ```bash
-npm install
 npx netlify dev
 ```
 
 Buat file `.env` di root project (jangan commit!):
 
 ```
-GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
-SPREADSHEET_ID=your_spreadsheet_id_here
+INVOICE_API_URL=https://<domain-dashboard>/api/public/invoice
 ```
 
 ## Struktur Project
 
 ```
-/netlify/functions/orders.js   ← Serverless function
+/netlify/functions/orders.js   ← Serverless proxy ke dashboard public API
 /public/index.html             ← Frontend
-/package.json                  ← Dependencies
+/package.json                  ← Dependencies (tidak ada dep runtime; pakai global fetch)
 /netlify.toml                  ← Netlify config
 ```
