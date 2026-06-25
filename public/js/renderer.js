@@ -4,6 +4,7 @@ import {
   COPY_ICON,
   IG_DM_LINK,
   JNE_TRACKING_LINK,
+  statusLabel,
 } from "./config.js";
 import { formatNumber, escapeHtml } from "./utils.js";
 
@@ -47,7 +48,7 @@ function buildHeader(ev, customer) {
         </div>
         ${status ? `<div class="header-item header-item--inline">
           <span class="header-label header-label--strong">Status</span>
-          <span class="header-value--normal">${escapeHtml(status)}</span>
+          <span class="header-value--normal">${escapeHtml(statusLabel(status))}</span>
           <button class="info-btn" data-popup="status" title="Info Status">i</button>
         </div>` : ""}
         ${showShipments ? shipments.map((s, i) => `<div class="header-item header-item--shipment">
