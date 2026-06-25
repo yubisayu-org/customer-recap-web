@@ -172,8 +172,10 @@ function buildEventCard(ev, customer) {
 export function renderOrders(customer, events) {
   let html = buildRemarks();
 
-  // Render events in reverse order (newest first)
-  [...events].reverse().forEach((ev) => {
+  // Render events in the order the API returns them: the upstream invoice
+  // endpoint already sorts newest-created event first (ORDER BY e.created_at
+  // DESC), so we must NOT reverse here or the order inverts to oldest-first.
+  events.forEach((ev) => {
     html += buildEventCard(ev, customer);
   });
 
