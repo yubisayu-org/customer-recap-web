@@ -12,6 +12,18 @@ export const IG_CHANNEL_LINK = "https://www.instagram.com/channel/AbbvStpygutze1
 export const JNE_TRACKING_LINK = "https://jne.co.id/en/tracking-package";
 export const WHATSAPP_NUMBER = "62811905159";
 
+// ── Status display labels ────────────────────────────
+// Maps the raw status value from the upstream invoice API to the
+// customer-facing label shown on the recap. Backend/DB values are unchanged.
+export const STATUS_LABELS = {
+  Processing: "Arrived",
+  Shipped: "Processing",
+};
+
+export function statusLabel(status) {
+  return STATUS_LABELS[status] ?? status;
+}
+
 // ── Info popup content ───────────────────────────────
 export const INFO_CONTENT = {
   eta: {
@@ -23,9 +35,9 @@ export const INFO_CONTENT = {
     body: `
       <div class="status-list">
         <span class="status-name">Pending</span><span class="status-desc">Barang belum lengkap</span>
-        <span class="status-name">Processing</span><span class="status-desc">Barang sudah lengkap, antri packing</span>
+        <span class="status-name">Arrived</span><span class="status-desc">Barang sudah lengkap, antri packing</span>
         <span class="status-name">Partially Shipped</span><span class="status-desc">Barang sudah dikirim sebagian</span>
-        <span class="status-name">Shipped</span><span class="status-desc">Barang sudah dikirim lengkap, menunggu resi dari kurir</span>
+        <span class="status-name">Processing</span><span class="status-desc">Barang sudah dipacking lengkap, menunggu resi dari kurir</span>
         <span class="status-name">Completed</span><span class="status-desc">Resi pengiriman sudah dapat diakses dan dicek</span>
       </div>
     `,
